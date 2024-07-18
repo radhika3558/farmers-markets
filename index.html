@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NYC Farmers' Markets</title>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="reset.css" />
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        font-size: 20px;
+        line-height: 1.4;
+      }
+      .container {
+        width: 600px;
+        margin: 40px auto 0 auto;
+        position: relative; /* Make the container relative */
+      }
+      h1 {
+        font-size: 50px;
+        margin-bottom: 20px;
+      }
+      h2 {
+        font-size: 35px;
+        margin-bottom: 40px;
+      }
+      .byline {
+        font-style: italic;
+        margin-bottom: 18px;
+      }
+      #map {
+        height: 400px;
+        width: 100%;
+        margin-bottom: 18px;
+        position: relative; /* Make the map position relative */
+      }
+      p {
+        margin-bottom: 18px;
+      }
+      .mapboxgl-popup {
+        max-width: 400px;
+        font: 12px/20px "Helvetica Neue", Arial, Helvetica, sans-serif;
+      }
+      .market-info {
+        position: absolute; /* Absolute positioning within the container */
+        top: 10px;
+        left: 10px;
+        font-family: sans-serif;
+        padding: 5px;
+        width: 200px;
+        border: 2px solid black;
+        font-size: 14px;
+        color: #222;
+        background-color: #fff;
+        border-radius: 3px;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Farmers' Markets in NYC</h1>
+      <h2>Explore farmers' markets near you</h2>
+      <p class="byline">By Radhika Rukmangadhan</p>
+      <p>
+        Hover over the market icons to find out information about your local
+        farmers' market. Also find out if the market accepts
+        <a href="https://otda.ny.gov/workingfamilies/ebt/"> EBT</a> and
+        distributes
+        <a
+          href="https://www.nyc.gov/site/doh/health/health-topics/health-bucks.page"
+          >Health Bucks</a
+        >.
+      </p>
+      <div id="map">
+        <div class="market-info">
+          
+
+          <div>
+            <strong>Distributes Health Bucks?</strong>&nbsp;<span
+              id="health-bucks"
+            ></span>
+          </div>
+          <div><strong>EBT Accepted:</strong>&nbsp;<span id="ebt"></span></div>
+          <div><strong>Address:</strong>&nbsp;<span id="address"></span></div>
+          <div>
+            <strong>Days of Operation:</strong>&nbsp;<span id="days"></span>
+          </div>
+          <div>
+            <strong>Hours of Operation:</strong>&nbsp;<span id="hours"></span>
+          </div>
+        </div>
+      </div>
+
+      <p>
+        Data for this project is from NYC's Open Data Portal. Click here to view
+        the
+        <a
+          href="https://data.cityofnewyork.us/dataset/NYC-Farmers-Markets/8vwk-6iz2"
+          >dataset</a
+        >.
+      </p>
+    </div>
+    <script>
+      mapboxgl.accessToken =
+        "pk.eyJ1IjoicmFkaGlrYTM4NSIsImEiOiJjbHI2eW0wemQwM3hyMmpxYTUwc2NuNXcyIn0.hdl5pdq1IBxMBPpGxYRzWg";
+      const map = new mapboxgl.Map({
+        container: "map", // container ID
+        center: [-74.006, 40.7128], // starting position [lng, lat]
+        zoom: 9.5,
+        style: "mapbox://styles/radhika385/clyq7tvp302cm01qjcb0c5dfk",
+      });
+      map.on("load", () => {
+        // Load an image from an external URL
+        map.loadImage(
+          "https://cdn-icons-png.flaticon.com/512/862/862856.png",
+          (error, image) => {
+            if (error) throw error;
+
+            // Add the image to the map style
+            map.addImage("cart", image);
+          }
+        );
+
+        map.addSource("farmers_markets", {
+          type: "geojson",
+          data: "data/NYC_Farmers_Markets.geojson",
+        });
+
+        map.addLayer({
+          id: "farmers_markets",
+          type: "symbol",
+          source: "farmers_markets",
+          layout: {
+            "icon-image": "cart", // reference the image
+            "icon-size": 0.02, // adjust the size as needed
+            "icon-anchor": "bottom",
+          },
+        });
+
+        const popup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+        });
+
+        map.on("mouseenter", "farmers_markets", (e) => {
+          map.getCanvas().style.cursor = "pointer";
+
+          const coordinates = e.features[0].geometry.coordinates.slice();
+          const properties = e.features[0].properties;
+          const name = properties["Market Name"] || "Unknown Market";
+
+          console.log(properties);
+
+          if (
+            ["mercator", "equirectangular"].includes(map.getProjection().name)
+          ) {
+            while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+              coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+            }
+          }
+
+          popup.setLngLat(coordinates).setHTML(name).addTo(map);
+        });
+
+        map.on("mouseleave", "farmers_markets", () => {
+          map.getCanvas().style.cursor = "";
+          popup.remove();
+        });
+
+        let marketID = null;
+
+        map.on("mousemove", "farmers_markets", (event) => {
+          map.getCanvas().style.cursor = "pointer";
+          const properties = event.features[0].properties;
+          // const marketName = properties["Market Name"];
+          const healthBucks = properties["Distributes Health Bucks?"];
+          const acceptsEBT = properties["Accepts EBT"];
+          const address = properties["Street Address"];
+          const days = properties["Days of Operation"];
+          const hours = properties["Hours of Operations"];
+
+          if (event.features.length === 0) return;
+
+          // document.getElementById("market-name").textContent = marketName;
+          document.getElementById("health-bucks").textContent = healthBucks;
+          document.getElementById("ebt").textContent = acceptsEBT;
+          document.getElementById("address").textContent = address;
+          document.getElementById("days").textContent = days;
+          document.getElementById("hours").textContent = hours;
+
+          if (marketID) {
+            map.removeFeatureState({
+              source: "farmers_markets",
+              id: marketID,
+            });
+          }
+
+          marketID = event.features[0].id;
+
+          map.setFeatureState(
+            {
+              source: "farmers_markets",
+              id: marketID,
+            },
+            {
+              hover: true,
+            }
+          );
+        });
+
+        map.on("mouseleave", "farmers_markets", () => {
+          if (marketID) {
+            map.setFeatureState(
+              {
+                source: "farmers_markets",
+                id: marketID,
+              },
+              {
+                hover: false,
+              }
+            );
+          }
+          marketID = null;
+          // document.getElementById("market-name").textContent = "";
+          document.getElementById("health-bucks").textContent = "";
+          document.getElementById("ebt").textContent = "";
+          document.getElementById("address").textContent = "";
+          document.getElementById("days").textContent = "";
+          document.getElementById("hours").textContent = "";
+          map.getCanvas().style.cursor = "";
+        });
+      });
+    </script>
+  </body>
+</html>
