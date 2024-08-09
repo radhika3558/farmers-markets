@@ -11,6 +11,11 @@
       rel="stylesheet"
     />
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
+    <script
+      id="search-js"
+      defer
+      src="https://api.mapbox.com/search-js/v1.0.0-beta.21/web.js"
+    ></script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -18,9 +23,9 @@
         line-height: 1.4;
       }
       .container {
-        width: 600px;
+        /* width: 600px;
         margin: 40px auto 0 auto;
-        position: relative; /* Make the container relative */
+        position: relative; Make the container relative */
       }
       h1 {
         font-size: 50px;
@@ -35,10 +40,10 @@
         margin-bottom: 18px;
       }
       #map {
-        height: 400px;
+        height: 100vh; /*changed*/
         width: 100%;
-        margin-bottom: 18px;
-        position: relative; /* Make the map position relative */
+        /* margin-bottom: 18px; */
+        position: absolute; /* changed */
       }
       p {
         margin-bottom: 18px;
@@ -48,40 +53,47 @@
         font: 12px/20px "Helvetica Neue", Arial, Helvetica, sans-serif;
       }
       .market-info {
-        position: absolute; /* Absolute positioning within the container */
-        top: 10px;
-        left: 10px;
-        font-family: sans-serif;
-        padding: 5px;
-        width: 200px;
-        border: 2px solid black;
-        font-size: 14px;
-        color: #222;
-        background-color: #fff;
-        border-radius: 3px;
-        z-index: 1;
-      }
+    z-index: 1;
+    background: white;
+    width: 500px;
+    position: absolute;
+    border: 3px solid;
+    border-image: linear-gradient(to right, red, orange, yellow, green) 1;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 30px;
+    opacity: 0.9;
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+    font-weight: 400;
+    color: #333;
+    text-align: left;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+    letter-spacing: 0.5px;
+}
+
+@media (max-width: 960px) {
+    .market-info {
+        font-size: 1.2rem;
+    }
+}
+
+.market-info h1 {
+    font-weight: 700;
+}
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>Farmers' Markets in NYC</h1>
-      <h2>Explore farmers' markets near you</h2>
-      <p class="byline">By Radhika Rukmangadhan</p>
-      <p>
-        Hover over the market icons to find out information about your local
-        farmers' market. Also find out if the market accepts
-        <a href="https://otda.ny.gov/workingfamilies/ebt/"> EBT</a> and
-        distributes
-        <a
-          href="https://www.nyc.gov/site/doh/health/health-topics/health-bucks.page"
-          >Health Bucks</a
-        >.
-      </p>
       <div id="map">
         <div class="market-info">
-          
-
+       <br>
+          <h1>Farmers' Markets</h1>
+			
+			<p>Search for farmers' markets in your area. Hover over the market icons to find information about your local farmers' market and whether they accept EBT and distribute Health Bucks.</p>
+          <div id="search-box-container"></div>
+        </br>
           <div>
             <strong>Distributes Health Bucks?</strong>&nbsp;<span
               id="health-bucks"
@@ -97,15 +109,6 @@
           </div>
         </div>
       </div>
-
-      <p>
-        Data for this project is from NYC's Open Data Portal. Click here to view
-        the
-        <a
-          href="https://data.cityofnewyork.us/dataset/NYC-Farmers-Markets/8vwk-6iz2"
-          >dataset</a
-        >.
-      </p>
     </div>
     <script>
       mapboxgl.accessToken =
@@ -113,8 +116,10 @@
       const map = new mapboxgl.Map({
         container: "map", // container ID
         center: [-74.006, 40.7128], // starting position [lng, lat]
-        zoom: 9.5,
-        style: "mapbox://styles/radhika385/clyq7tvp302cm01qjcb0c5dfk",
+        zoom: 3,
+        maxZoom: 18 /*added*/,
+        minZoom: 10 /*added*/,
+        style: "mapbox://styles/radhika385/clyyq3fex016p01pad0eg5z1m",
       });
       map.on("load", () => {
         // Load an image from an external URL
@@ -139,7 +144,7 @@
           source: "farmers_markets",
           layout: {
             "icon-image": "cart", // reference the image
-            "icon-size": 0.02, // adjust the size as needed
+            "icon-size": 0.05, // adjust the size as needed
             "icon-anchor": "bottom",
           },
         });
@@ -237,6 +242,36 @@
           map.getCanvas().style.cursor = "";
         });
       });
+
+      const script = document.getElementById("search-js");
+
+      // wait for the Mapbox Search JS script to load before using it
+      script.onload = function () {
+        const mapboxAccessToken =
+          "pk.eyJ1IjoibGFycnlidWNoIiwiYSI6ImNqOG93NHRxejA4bzYzM21rMjZhYTR6MjUifQ.pOEkqlk5klnzMIzpeiDUVw";
+
+        // instantiate a search box instance
+        const searchBox = new mapboxsearch.MapboxSearchBox();
+
+        // set the mapbox access token, search box API options
+        searchBox.accessToken = mapboxAccessToken;
+        searchBox.options = {
+          language: "en",
+
+          // this limits the address search to just this bounding box. in this case, new york city
+          bbox: [-74.2596399, 40.477399, -73.700292, 40.917577],
+        };
+
+        // set the mapboxgl library to use for markers and enable the marker functionality
+        searchBox.mapboxgl = mapboxgl;
+        searchBox.marker = true;
+
+        // bind the search box instance to the map instance
+        searchBox.bindMap(map);
+
+        // add the search box instance to the DOM
+        document.getElementById("search-box-container").appendChild(searchBox);
+      };
     </script>
   </body>
 </html>
